@@ -10,5 +10,5 @@ of Language Technology programme.
 ## Your notes
 
 Place instructions for running your project here, as per the assignment
-description in GUL.
+description in GUL, as well as any other text required for the assignment.
 
