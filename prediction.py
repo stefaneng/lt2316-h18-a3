@@ -10,6 +10,7 @@
 
 import mycoco
 import matplotlib.pyplot as plt
+from sklearn.neighbors import NearestNeighbors
 # Insert whatever other module imports you need.
 
 # Insert whatever initialization code, auxiliary functions, classes,
