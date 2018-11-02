@@ -30,6 +30,13 @@ import skimage.io as io
 import skimage.transform as tform
 import numpy as np
 
+from keras.utils import to_categorical
+from keras.preprocessing.sequence import pad_sequences
+
+import tensorflow as tf
+global graph,model
+graph = tf.get_default_graph()
+
 def setmode(mode):
     '''
     Set entire module's mode as 'train' or 'test' for the purpose of data extraction.
@@ -129,7 +136,73 @@ def iter_captions(idlists, cats, batch=1):
                     yield (captions, labels)
                     captions = []
                     labels = []
+                    
+def iter_captions_examples(idlists, tokenizer, model, num_words = 10000, seq_maxlen = 5, batch=1):
+    '''
+    Obtains the corresponding caption training examples from multiple COCO id lists.
+    Randomizes the order.  
+    Returns an infinite iterator (do not convert to list!) that returns tuples (captions, categories)
+    as parallel lists at size of batch.
+    '''
+    if not capcoco:
+        raise ValueError
+    if batch < 1:
+        raise ValueError
 
+    full = []
+    for z in idlists:
+        for x in z:
+            full.append(x)
+        
+    while True:
+        randomlist = random.sample(full, k=len(full))
+        caption_examples = []
+        # encoded_image = []
+
+        for p in randomlist:
+            # Get the captions
+            annids =  capcoco.getAnnIds(imgIds=[p])
+            anns = capcoco.loadAnns(annids)
+            
+            # Get the image
+            size = (200,200)
+            imgfile = annotcoco.loadImgs([p])[0]['file_name']
+            img = io.imread(imgdir + imgfile)
+            imgscaled = tform.resize(img, size)
+            
+            # Colour images only.
+            if imgscaled.shape != (size[0], size[1], 3):
+                continue
+            
+            # Use model to predict
+            with graph.as_default():
+                encoded_img = model.predict(np.array([imgscaled]))
+                
+            for ann in anns:                
+                cap = ann['caption']
+                # print("Caption:", cap)
+                encoded = tokenizer.texts_to_sequences([cap])[0]
+                # print("Encoded:", encoded)
+                # Create 
+                for i in range(1,len(encoded)):
+                    end_index = len(encoded) - i
+                    # Force the sequence to fit into seq_maxlen
+                    start_index = end_index - seq_maxlen
+                    if start_index < 0:
+                        start_index = 0            
+                    cap_ex = encoded[start_index:end_index]
+                    pad_cap_ex = pad_sequences([cap_ex], padding='post', maxlen=seq_maxlen)
+                    pred_word = encoded[-i]
+                    y_words = to_categorical(pred_word, num_classes=num_words)
+                    
+                    # This batch this isn't really going to work in the way
+                    # Would need to keep track of multiple, for now just run with batch=1
+#                    if len(caption_examples) % batch == 0:
+                    yield (pad_cap_ex, [[y_words], encoded_img])
+                # For LSTM you may want to do more with the captions
+                # or otherwise distribute the data.
+
+                    
 def iter_captions_cats(idlists, cats, batch=1):
     '''
     Obtains the corresponding captions from multiple COCO id lists alongside all associated image captions per image.
