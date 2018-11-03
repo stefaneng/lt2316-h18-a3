@@ -139,6 +139,9 @@ def iter_captions(idlists, cats, batch=1):
                     labels = []
 
 def get_images(img_ids, size = (200, 200)):
+    '''
+    Returns a list of images with ids `img_ids` with dimensions `size`.
+    '''
     results = []
     for i in annotcoco.loadImgs(img_ids):
         imgfile = i['file_name']
