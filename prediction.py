@@ -10,7 +10,13 @@
 
 import mycoco
 import matplotlib.pyplot as plt
+import pickle
 from sklearn.neighbors import NearestNeighbors
+from keras.models import load_model
+from keras.preprocessing.sequence import pad_sequences
+from keras.preprocessing.text import text_to_word_sequence
+
+import numpy as np
 # Insert whatever other module imports you need.
 
 # Insert whatever initialization code, auxiliary functions, classes,
@@ -19,14 +25,17 @@ from sklearn.neighbors import NearestNeighbors
 class PredictiveSearch:
     # Add whatever additional methods etc you need.
     
-    def __init__(self, modelfile):
+    def __init__(self, modelfile, tokenizerfile):
         '''
         Load the model however you want, do whatever initialization you
         need here.  You can change the method signature to require
         more parameters if you think you need them, as long as you document
         this.
         '''
-        self.modelfile = modelfile
+        self.model = load_model(modelfile)
+        self.model.summary()
+        with open(tokenizerfile, 'rb') as f:
+            self.tokenizer = pickle.load(f)
     
     def predictive_search(self, words):
         '''
@@ -45,5 +54,55 @@ class PredictiveSearch:
            that the model predicts.
         '''
         
-        raise NotImplementedError #delete when you implement
+        # Show top 5 predictions
+        predicted_number = 5
+        vocab_size = self.tokenizer.num_words
+        words_filtered = text_to_word_sequence(words)
+        # Flip the word index around so we can look up word names based on the index
+        word_lookup = {index: w for w, index in self.tokenizer.word_index.items() if index < vocab_size}
+        
+        print("Original sentence:", words)
+        print("Filtered:", words_filtered)
+        
+        # Print words that are out of vocabulary range
+        for w in words_filtered:            
+            if w not in self.tokenizer.word_index or self.tokenizer.word_index[w] >= vocab_size:
+                print(w, "missing from tokenizer")
+
+        # Get the window size from the model input
+        window_size = self.model.layers[0].get_input_at(0).get_shape().as_list()[1]
+        print("Window size =", window_size)
+
+        encoded = self.tokenizer.texts_to_sequences([words])   
+        
+        predicted_words = []
+        x = pad_sequences(encoded, padding='post', truncating='pre', maxlen=window_size)
+        
+        print("Padded sequence:", x)
+        
+        print("Predicting using words: ", " ".join([word_lookup[j] for j in x[0] if j != 0]))
+
+        word_preds, vec_preds = self.model.predict(np.array(x))
+        
+        # Only are predicting one value
+        words_preds = word_preds[0]
+        vec_preds = vec_preds[0]
+
+        # Use this prediction as the last word
+        pred = np.argmax(word_preds, axis=None) + 1
+        predicted_words.append(word_lookup[pred])
+        encoded[0].append(pred)
+        
+        # Word predictions
+        # Descending order
+        sort_word_preds = np.argsort(word_preds, axis=None)[::-1][:predicted_number]
+        sort_word_names = [word_lookup[i + 1] for i in sort_word_preds]
+        sort_word_probs = words_preds[sort_word_preds]
+
+        print("Predicting: {}...".format(words))
+        print("Word Predictions:")
+        for w, prob in list(zip(sort_word_names, sort_word_probs)):
+            print("{}: {}".format(w, prob))
+            
+        print("Vector prediction:", vec_preds)
     

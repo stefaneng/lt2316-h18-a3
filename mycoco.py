@@ -33,6 +33,7 @@ import numpy as np
 from keras.utils import to_categorical
 from keras.preprocessing.sequence import pad_sequences
 
+# See: https://github.com/keras-team/keras/issues/6462
 import tensorflow as tf
 global graph,model
 graph = tf.get_default_graph()
@@ -173,9 +174,10 @@ def iter_captions_examples(idlists, tokenizer, model, num_words = 10000, seq_max
             # Colour images only.
             if imgscaled.shape != (size[0], size[1], 3):
                 continue
-            
-            # Use model to predict
+                        
+            # See https://github.com/keras-team/keras/issues/6462
             with graph.as_default():
+                # Use model to get the encoded image
                 encoded_img = model.predict(np.array([imgscaled]))
                 
             for ann in anns:                

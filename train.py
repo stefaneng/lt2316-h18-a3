@@ -32,18 +32,19 @@ input_length = 5
 embed_size = 50
 vocab_size = 10000
 img_vec_size = 5000
+dropout = 0.2
 
 inputs = Input(shape=(input_length,))
 embed = Embedding(vocab_size, embed_size, input_length=input_length)(inputs)
-lstm = LSTM(50, dropout=0.1)(embed)
+lstm = LSTM(50, dropout=dropout, recurrent_dropout=dropout)(embed)
 # Word prediction softmax
 word_pred = Dense(vocab_size, activation='softmax', name='word_prediction')(lstm)
 image_vec_preds = Dense(img_vec_size, activation = 'sigmoid', name='image_vec_prediction')(lstm)
 
 # This creates a model that includes
 # the Input layer and two Dense layers outputs
-model = Model(inputs=inputs, outputs=[word_pred, image_vec_preds])
-
+# model = Model(inputs=inputs, outputs=[word_pred, image_vec_preds])
+model = load_model('./assign3.model.hdf5')
 model.compile(optimizer='adam',
         loss={
             'word_prediction': 'categorical_crossentropy',
@@ -55,8 +56,8 @@ model.summary()
 # Logging
 csv_logger = CSVLogger('./train_log.csv', append=True, separator=',')
 filepath="./model_assign3.best.hdf5"
-checkpoint = ModelCheckpoint(filepath, monitor='loss', verbose=1, save_best_only=True, mode='min')
+checkpoint = ModelCheckpoint(filepath, monitor='loss', verbose=2, save_best_only=True, mode='min')
 
 # Fit and save
-model.fit_generator(cap_examples, steps_per_epoch=100, epochs=5, callbacks=[checkpoint, csv_logger])
-model.save('./autoencoder.model.hdf5')
+model.fit_generator(cap_examples, steps_per_epoch=2500, epochs=50, verbose=2, callbacks=[checkpoint, csv_logger])
+model.save('./assign3.model.hdf5')
