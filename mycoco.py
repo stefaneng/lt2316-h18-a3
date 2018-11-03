@@ -137,6 +137,18 @@ def iter_captions(idlists, cats, batch=1):
                     yield (captions, labels)
                     captions = []
                     labels = []
+
+def get_images(img_ids, size = (200, 200)):
+    results = []
+    for i in annotcoco.loadImgs(img_ids):
+        imgfile = i['file_name']
+        img = io.imread(imgdir + imgfile)
+        imgscaled = tform.resize(img, size)
+        results.append(imgscaled)
+        if imgscaled.shape != (size[0], size[1], 3):
+            print("Error: Not a color image")
+            return
+    return results
                     
 def iter_captions_examples(idlists, tokenizer, model, num_words = 10000, seq_maxlen = 5, batch=1):
     '''
@@ -241,6 +253,24 @@ def iter_captions_cats(idlists, cats, batch=1):
                     yield (captions, labels)
                     captions = []
                     labels = []
+
+def iter_vector_images(idlist, size=(200, 200)):
+    '''
+    Unlike the other functions, idlist should contain one list of ids
+    '''
+    if not annotcoco:
+        raise ValueError
+    if not size:
+        raise ValueError # size is mandatory
+      
+    for r in idlist:
+        imgfile = annotcoco.loadImgs([r])[0]['file_name']
+        img = io.imread(imgdir + imgfile)
+        imgscaled = tform.resize(img, size)
+        # Colour images only.
+        if imgscaled.shape == (size[0], size[1], 3):
+            yield (r, np.array([imgscaled]))
+
                     
 def iter_images(idlists, cats, size=(200,200), batch=1):
     '''

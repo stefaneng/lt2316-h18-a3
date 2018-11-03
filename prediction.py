@@ -17,6 +17,7 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import text_to_word_sequence
 
 import numpy as np
+import pandas as pd
 # Insert whatever other module imports you need.
 
 # Insert whatever initialization code, auxiliary functions, classes,
@@ -25,17 +26,39 @@ import numpy as np
 class PredictiveSearch:
     # Add whatever additional methods etc you need.
     
-    def __init__(self, modelfile, tokenizerfile):
+    def __init__(self, modelfile, tokenizerfile, encoded_images, test=False):
         '''
         Load the model however you want, do whatever initialization you
         need here.  You can change the method signature to require
         more parameters if you think you need them, as long as you document
         this.
+        `tokenizerfile` path to the pickled tokenizer used in the model.
+        `encoded_images` path to csv file with image ids and encoded vectors.
         '''
         self.model = load_model(modelfile)
-        self.model.summary()
+        #self.model.summary()
+        # read in the tokenizer,
         with open(tokenizerfile, 'rb') as f:
             self.tokenizer = pickle.load(f)
+            
+        mycoco.setmode('train')
+
+        # Load in the pre-computed vectors for each id in training set
+        self.encoded_df = pd.read_csv(encoded_images, index_col=0)
+        
+    def nearest_images(self, k, encoded_vec):
+        nbrs = NearestNeighbors(n_neighbors=k).fit(self.encoded_df)        
+        self.encoded_df.index[nbrs.kneighbors([encoded_vec], return_distance=False)[0]]
+        
+        # Get the k nearest neighbors to the encoded vector
+        nearest_indicies = nbrs.kneighbors([encoded_vec], return_distance=False)[0]
+        # Return the images ids
+        nearest_img_ids = self.encoded_df.index[nearest_indicies]
+        # Show the top k images
+        for img in mycoco.get_images(nearest_img_ids):
+            plt.axis('off')
+            plt.imshow(img)
+            plt.show()
     
     def predictive_search(self, words):
         '''
@@ -61,13 +84,12 @@ class PredictiveSearch:
         # Flip the word index around so we can look up word names based on the index
         word_lookup = {index: w for w, index in self.tokenizer.word_index.items() if index < vocab_size}
         
-        print("Original sentence:", words)
-        print("Filtered:", words_filtered)
+        print("Original sentence:", words)      
         
         # Print words that are out of vocabulary range
         for w in words_filtered:            
             if w not in self.tokenizer.word_index or self.tokenizer.word_index[w] >= vocab_size:
-                print(w, "missing from tokenizer")
+                print(w, "missing from tokenizer")       
 
         # Get the window size from the model input
         window_size = self.model.layers[0].get_input_at(0).get_shape().as_list()[1]
@@ -75,10 +97,10 @@ class PredictiveSearch:
 
         encoded = self.tokenizer.texts_to_sequences([words])   
         
-        predicted_words = []
-        x = pad_sequences(encoded, padding='post', truncating='pre', maxlen=window_size)
+        if len(encoded[0]) == 0:
+            raise RuntimeError('No words from the sentence are in the vocabulary') 
         
-        print("Padded sequence:", x)
+        x = pad_sequences(encoded, padding='post', truncating='pre', maxlen=window_size)
         
         print("Predicting using words: ", " ".join([word_lookup[j] for j in x[0] if j != 0]))
 
@@ -90,8 +112,6 @@ class PredictiveSearch:
 
         # Use this prediction as the last word
         pred = np.argmax(word_preds, axis=None) + 1
-        predicted_words.append(word_lookup[pred])
-        encoded[0].append(pred)
         
         # Word predictions
         # Descending order
@@ -102,7 +122,7 @@ class PredictiveSearch:
         print("Predicting: {}...".format(words))
         print("Word Predictions:")
         for w, prob in list(zip(sort_word_names, sort_word_probs)):
-            print("{}: {}".format(w, prob))
+            print("\t{}: {}".format(w, prob))
             
-        print("Vector prediction:", vec_preds)
-    
+        #print("Vector prediction:", vec_preds)
+        self.nearest_images(3, vec_preds)
