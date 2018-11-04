@@ -44,7 +44,7 @@ class PredictiveSearch:
         mycoco.setmode('train')
 
         # Load in the pre-computed vectors for each id in training set
-        self.encoded_df = pd.read_csv(encoded_images, index_col=0)
+        self.encoded_df = pd.read_csv(encoded_images, compression='gzip', index_col=0).dropna(axis=0)
         
     def nearest_images(self, k, encoded_vec):
         nbrs = NearestNeighbors(n_neighbors=k).fit(self.encoded_df)        
@@ -54,8 +54,8 @@ class PredictiveSearch:
         dists, nearest_indicies = nbrs.kneighbors([encoded_vec])
         # Return the images ids
         nearest_indicies = nearest_indicies[0]
-        print("Nearest indicies:", nearest_indicies) 
-        print("Distances:", dists)
+        # print("Nearest indicies:", nearest_indicies) 
+        # print("Distances:", dists)
         nearest_img_ids = self.encoded_df.index[nearest_indicies]
         # Show the top k images
         for img in mycoco.get_images(nearest_img_ids):
@@ -127,5 +127,5 @@ class PredictiveSearch:
         for w, prob in list(zip(sort_word_names, sort_word_probs)):
             print("\t{}: {}".format(w, prob))
             
-        print("Vector prediction:", vec_preds.round(3))
+        # print("Vector prediction:", vec_preds.round(3))
         self.nearest_images(3, vec_preds)
