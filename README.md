@@ -9,6 +9,7 @@ of Language Technology programme.
 
 ## How to Run
 
+Run in a jupyter notebook so you can see the image predictions
 ```python
 import prediction
 
@@ -48,6 +49,7 @@ The final layer is linear (200 nodes) with a mean squared error loss function.
 
 
 ### Encoder
-![Encoder](./imgs/encoder.png)
 This is the partial model extracted from the autoencoder (code available [here](https://github.com/stefaneng/coco-image-autoencoder)).
 It is used to encode each image into a 200 dimensional vector.
+
+![Encoder](./imgs/encoder.png)
