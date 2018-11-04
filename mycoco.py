@@ -171,12 +171,7 @@ def iter_captions_examples(idlists, tokenizer, model, num_words = 10000, seq_max
             full.append(x)
         
     while True:
-        # Sample 5000 ids at a time
-        # Compute all the training examples, and randomly return the captions and image
-        # from these
-        # Otherwise we get a huge sequence of captions and example for the same image     
-        id_batch_size = 5000
-        randomlist = random.sample(full, k=id_batch_size)
+        randomlist = random.sample(full, k=len(full))
         caption_examples = []
 
         results = []        
@@ -200,30 +195,25 @@ def iter_captions_examples(idlists, tokenizer, model, num_words = 10000, seq_max
             # Use model to get the encoded image            
                 encoded_img = model.predict(np.array([imgscaled]))
             
-            # Randomly sample an annotation            
-            for ann in anns:                
-                cap = ann['caption']
-                encoded = tokenizer.texts_to_sequences([cap])[0]
-                # Create training example with window size `seq_maxlen`                
-                for i in range(1,len(encoded)):
-                    end_index = len(encoded) - i
-                    # Force the sequence to fit into seq_maxlen
-                    start_index = end_index - seq_maxlen
-                    if start_index < 0:
-                        start_index = 0            
-                    cap_ex = encoded[start_index:end_index]
-                    pad_cap_ex = pad_sequences([cap_ex], padding='post', maxlen=seq_maxlen)
-                    pred_word = encoded[-i]
-                    y_words = to_categorical(pred_word, num_classes=num_words)
+            # Randomly sample an annotation 
+            ann = random.sample(anns, k=1)[0]
+            cap = ann['caption']
+            encoded = tokenizer.texts_to_sequences([cap])[0]
+            # Create training example 
+            # Randomly generate a training example with window size `seq_maxlen`
+            i = random.randint(1, len(encoded))            
+            end_index = len(encoded) - i
+            # Force the sequence to fit into seq_maxlen
+            start_index = end_index - seq_maxlen
+            if start_index < 0:
+                start_index = 0            
+            cap_ex = encoded[start_index:end_index]
+            pad_cap_ex = pad_sequences([cap_ex], padding='post', maxlen=seq_maxlen)
+            pred_word = encoded[-i]
+            y_words = to_categorical(pred_word, num_classes=num_words)
 
-                    # Add tuple to results
-                    results.append((pad_cap_ex, [[y_words], encoded_img]))
-    
-        # Yield results in a random order
-        np.random.shuffle(results)
-        for r in results:
-            yield r
-        
+            # Add tuple to results
+            yield (pad_cap_ex, [[y_words], encoded_img])        
                     
 def iter_captions_cats(idlists, cats, batch=1):
     '''

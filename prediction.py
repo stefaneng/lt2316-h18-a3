@@ -51,8 +51,11 @@ class PredictiveSearch:
         self.encoded_df.index[nbrs.kneighbors([encoded_vec], return_distance=False)[0]]
         
         # Get the k nearest neighbors to the encoded vector
-        nearest_indicies = nbrs.kneighbors([encoded_vec], return_distance=False)[0]
+        dists, nearest_indicies = nbrs.kneighbors([encoded_vec])
         # Return the images ids
+        nearest_indicies = nearest_indicies[0]
+        print("Nearest indicies:", nearest_indicies) 
+        print("Distances:", dists)
         nearest_img_ids = self.encoded_df.index[nearest_indicies]
         # Show the top k images
         for img in mycoco.get_images(nearest_img_ids):
@@ -124,5 +127,5 @@ class PredictiveSearch:
         for w, prob in list(zip(sort_word_names, sort_word_probs)):
             print("\t{}: {}".format(w, prob))
             
-        #print("Vector prediction:", vec_preds)
+        print("Vector prediction:", vec_preds.round(3))
         self.nearest_images(3, vec_preds)
