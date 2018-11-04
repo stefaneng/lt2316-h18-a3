@@ -29,6 +29,16 @@ Class `PredictiveSearch(modelfile, tokenizerfile, encoded_images)`, where
   - `tokenizerfile` is the path to the tokenizer used to preprocess the captions for training.
   - `encoded_images` is the path to a `.tar.gz` csv file with the first column as the index of the image and the remaining columns are the autoencoders representation of the image. This can be recreated by running the [write_id_vector.py](./write_id_vector.py) script.
 
+## Training
+See [train.py](./train.py)
+  - I trained the model on batches of 1000 random caption training examples with 500 epochs.
+
+Running
+```
+python train.py
+```  
+will repeat how I trained the model.
+
 ## Models
 
 ### Main Model
