@@ -5,7 +5,7 @@
 import sys
 
 # This is evil, forgive me, but practical under the circumstances.
-# It's a hardcoded access to the COCO API.  
+# It's a hardcoded access to the COCO API.
 COCOAPI_PATH='/scratch/lt2316-h18-resources/cocoapi/PythonAPI/'
 TRAIN_ANNOT_FILE='/scratch/lt2316-h18-resources/coco/annotations/instances_train2017.json'
 VAL_ANNOT_FILE='/scratch/lt2316-h18-resources/coco/annotations/instances_val2017.json'
@@ -64,12 +64,12 @@ def setmode(mode):
     # To facilitate category lookup.
     cats = annotcoco.getCatIds()
     catdict = {x:(annotcoco.loadCats(ids=[x])[0]['name']) for x in cats}
-    
+
 def query(queries, exclusive=True):
     '''
-    Collects mutually-exclusive lists of COCO ids by queries, so returns 
+    Collects mutually-exclusive lists of COCO ids by queries, so returns
     a parallel list of lists.
-    (Setting 'exclusive' to False makes the lists non-exclusive.)  
+    (Setting 'exclusive' to False makes the lists non-exclusive.)
     e.g., exclusive_query([['toilet', 'boat'], ['umbrella', 'bench']])
     to find two mutually exclusive lists of images, one with toilets and
     boats, and the other with umbrellas and benches in the same image.
@@ -85,11 +85,11 @@ def query(queries, exclusive=True):
             return [list(y) for y in imgsets]
     else:
         return [list(imgsets[0])]
-    
+
 def get_captions_for_ids(idlist):
     annids =  capcoco.getAnnIds(imgIds=idlist)
     anns = capcoco.loadAnns(annids)
-    return [ann['caption'] for ann in anns]    
+    return [ann['caption'] for ann in anns]
 
 def get_cats_for_img(imgid):
     '''
@@ -97,16 +97,16 @@ def get_cats_for_img(imgid):
     '''
     if not annotcoco:
         raise ValueError
-        
+
     imgannids = annotcoco.getAnnIds(imgIds=imgid)
     imganns = annotcoco.loadAnns(imgannids)
     return list(set([catdict[x['category_id']] for x in imganns]))
-    
-    
+
+
 def iter_captions(idlists, cats, batch=1):
     '''
     Obtains the corresponding captions from multiple COCO id lists.
-    Randomizes the order.  
+    Randomizes the order.
     Returns an infinite iterator (do not convert to list!) that returns tuples (captions, categories)
     as parallel lists at size of batch.
     '''
@@ -119,7 +119,7 @@ def iter_captions(idlists, cats, batch=1):
     for z in zip(idlists, cats):
         for x in z[0]:
             full.append((x, z[1]))
-        
+
     while True:
         randomlist = random.sample(full, k=len(full))
         captions = []
@@ -152,12 +152,11 @@ def get_images(img_ids, size = (200, 200)):
             print("Error: Not a color image")
             return
     return results
-                    
+
 def iter_captions_examples(idlists, tokenizer, model, num_words = 10000, seq_maxlen = 5, batch=1):
     '''
-    Obtains the corresponding caption training examples from multiple COCO id lists.
-    Randomizes the order.  
-    Returns an infinite iterator (do not convert to list!) that returns tuples (captions, categories)
+    Obtains a random training example for the ids found in idlists.
+    Returns an infinite iterator (do not convert to list!) that returns tuples (padded example, [[predicted word], encoded image])
     as parallel lists at size of batch.
     '''
     if not capcoco:
@@ -165,60 +164,61 @@ def iter_captions_examples(idlists, tokenizer, model, num_words = 10000, seq_max
     if batch < 1:
         raise ValueError
 
+    # Join all the ids together
     full = []
     for z in idlists:
         for x in z:
             full.append(x)
-        
+
     while True:
         randomlist = random.sample(full, k=len(full))
         caption_examples = []
 
-        results = []        
+        results = []
         for p in randomlist:
             # Get the captions
             annids =  capcoco.getAnnIds(imgIds=[p])
             anns = capcoco.loadAnns(annids)
-            
+
             # Get the image
             size = (200,200)
             imgfile = annotcoco.loadImgs([p])[0]['file_name']
             img = io.imread(imgdir + imgfile)
             imgscaled = tform.resize(img, size)
-            
+
             # Colour images only.
             if imgscaled.shape != (size[0], size[1], 3):
                 continue
-                        
+
             # See https://github.com/keras-team/keras/issues/6462
             with graph.as_default():
-            # Use model to get the encoded image            
+            # Use model to get the encoded image
                 encoded_img = model.predict(np.array([imgscaled]))
-            
-            # Randomly sample an annotation 
+
+            # Randomly sample an annotation
             ann = random.sample(anns, k=1)[0]
             cap = ann['caption']
             encoded = tokenizer.texts_to_sequences([cap])[0]
-            # Create training example 
+            # Create training example
             # Randomly generate a training example with window size `seq_maxlen`
-            i = random.randint(1, len(encoded))            
+            i = random.randint(1, len(encoded))
             end_index = len(encoded) - i
             # Force the sequence to fit into seq_maxlen
             start_index = end_index - seq_maxlen
             if start_index < 0:
-                start_index = 0            
+                start_index = 0
             cap_ex = encoded[start_index:end_index]
             pad_cap_ex = pad_sequences([cap_ex], padding='post', maxlen=seq_maxlen)
             pred_word = encoded[-i]
             y_words = to_categorical(pred_word, num_classes=num_words)
 
             # Add tuple to results
-            yield (pad_cap_ex, [[y_words], encoded_img])        
-                    
+            yield (pad_cap_ex, [[y_words], encoded_img])
+
 def iter_captions_cats(idlists, cats, batch=1):
     '''
     Obtains the corresponding captions from multiple COCO id lists alongside all associated image captions per image.
-    Randomizes the order.  
+    Randomizes the order.
     Returns an infinite iterator (do not convert to list!) that returns tuples (captions, categories)
     as parallel lists at size of batch.
     '''
@@ -231,7 +231,7 @@ def iter_captions_cats(idlists, cats, batch=1):
     for z in zip(idlists, cats):
         for x in z[0]:
             full.append((x, z[1]))
-        
+
     while True:
         randomlist = random.sample(full, k=len(full))
         captions = []
@@ -260,7 +260,7 @@ def iter_vector_images(idlist, size=(200, 200)):
         raise ValueError
     if not size:
         raise ValueError # size is mandatory
-      
+
     for r in idlist:
         imgfile = annotcoco.loadImgs([r])[0]['file_name']
         img = io.imread(imgdir + imgfile)
@@ -269,7 +269,7 @@ def iter_vector_images(idlist, size=(200, 200)):
         if imgscaled.shape == (size[0], size[1], 3):
             yield (r, np.array([imgscaled]))
 
-                    
+
 def iter_images(idlists, cats, size=(200,200), batch=1):
     '''
     Obtains the corresponding image data as numpy array from multiple COCO id lists.
