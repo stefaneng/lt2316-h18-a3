@@ -171,10 +171,15 @@ def iter_captions_examples(idlists, tokenizer, model, num_words = 10000, seq_max
             full.append(x)
         
     while True:
-        randomlist = random.sample(full, k=len(full))
+        # Sample 5000 ids at a time
+        # Compute all the training examples, and randomly return the captions and image
+        # from these
+        # Otherwise we get a huge sequence of captions and example for the same image     
+        id_batch_size = 5000
+        randomlist = random.sample(full, k=id_batch_size)
         caption_examples = []
-        # encoded_image = []
 
+        results = []        
         for p in randomlist:
             # Get the captions
             annids =  capcoco.getAnnIds(imgIds=[p])
@@ -192,15 +197,14 @@ def iter_captions_examples(idlists, tokenizer, model, num_words = 10000, seq_max
                         
             # See https://github.com/keras-team/keras/issues/6462
             with graph.as_default():
-                # Use model to get the encoded image
+            # Use model to get the encoded image            
                 encoded_img = model.predict(np.array([imgscaled]))
-                
+            
+            # Randomly sample an annotation            
             for ann in anns:                
                 cap = ann['caption']
-                # print("Caption:", cap)
                 encoded = tokenizer.texts_to_sequences([cap])[0]
-                # print("Encoded:", encoded)
-                # Create 
+                # Create training example with window size `seq_maxlen`                
                 for i in range(1,len(encoded)):
                     end_index = len(encoded) - i
                     # Force the sequence to fit into seq_maxlen
@@ -211,14 +215,15 @@ def iter_captions_examples(idlists, tokenizer, model, num_words = 10000, seq_max
                     pad_cap_ex = pad_sequences([cap_ex], padding='post', maxlen=seq_maxlen)
                     pred_word = encoded[-i]
                     y_words = to_categorical(pred_word, num_classes=num_words)
-                    
-                    # This batch this isn't really going to work in the way
-                    # Would need to keep track of multiple, for now just run with batch=1
-#                    if len(caption_examples) % batch == 0:
-                    yield (pad_cap_ex, [[y_words], encoded_img])
-                # For LSTM you may want to do more with the captions
-                # or otherwise distribute the data.
 
+                    # Add tuple to results
+                    results.append((pad_cap_ex, [[y_words], encoded_img]))
+    
+        # Yield results in a random order
+        np.random.shuffle(results)
+        for r in results:
+            yield r
+        
                     
 def iter_captions_cats(idlists, cats, batch=1):
     '''
